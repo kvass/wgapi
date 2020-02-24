@@ -2,19 +2,20 @@ const express = require('express');
 const router = express.Router();//这里用到了express的路由级中间件
 const Goods = require('../models/goods');
 const Desks = require('../models/desks');
-const mongoose = require('mongoose');
+const Users = require('../models/user');
+const checkNL = require('../mw/check').checkNotLogin
 
 //路由获取
 router.get('/goods', function (req, res, next) {
 //查询mongoDB的goods数据
     Goods.find({}, function (err, doc) {
         if (err) {
-        res.json({
-            status: '1',
-            msg: err.message
-        })
+            res.json({
+                status: '1',
+                msg: err.message
+            })
         } else {
-        res.json(doc)
+            res.json(doc)
         }
     })
 });
@@ -35,6 +36,7 @@ router.post('/desk/cut', function (req, res) {
     // res.json(req.body);
     let AAA = req.body;
     Desks.updateOne({_id: mongoose.Types.ObjectId(AAA[0]), 'OCards._id': AAA[1]}, {$set: {'OCards.$.own': req.body[2]}}, (err) => {
+    // Desks.updateOne({_id: {$oid: AAA[0]}, 'OCards._id': AAA[1]}, {$set: {'OCards.$.own': req.body[2]}}, (err) => {
         if (err) {
             res.send({'status': 1002, 'message': '修改失败', 'data': err, 'AAA': AAA[0]});
         } else {
@@ -99,33 +101,37 @@ router.post('/desk', (req, res) => {
 
 //注册账号的接口
 //  /api为代理的服务
-router.post('/api/user/register',(req,res) => {
+router.get('/reg', checkNL, (req,res, next) => {
     //这里的req.body 其实使用了body-parser中间件 用来对前端发送来的数据进行解析
     //查询数据库中name= req.body.name 的数据
-    models.Login.find({name: req.body.name},(err,data) => {
-        if(err){
-            res.send({'status': 1002, 'message': '查询失败', 'data': err});
-        }else{
-            console.log('查询成功'+data)
-            //data为返回的数据库中的有相同name的集合
-            if(data.length > 0){
-                res.send({'status': 1001, 'message': '该用户名已经注册！'});
-            }else{
-                let newName = new models.Login({
-                    name : req.body.name,
-                    password : req.body.password
-                });
-                //newName.save 往数据库中插入数据
-                newName.save((err,data) => {
-                    if (err) {
-                        res.send({'status': 1002, 'message': '注册失败！', 'data': err});
-                    } else {
-                        res.send({'status': 1000, 'message': '注册成功!'});
-                    }
-                });
-            }
-        }
+    res.send('注册')
+})
+//  /api为代理的服务
+router.post('/reg', checkNL, (req,res) => {
+    //这里的req.body 其实使用了body-parser中间件 用来对前端发送来的数据进行解析
+    //查询数据库中name= req.body.name 的数据
+    // res.send(req.body)
+
+    // 待写入数据库的用户信息
+    let user = new Users ({
+      name: req.body.name,
+      code: req.body.code,
+      state: req.body.state
     })
+    // 用户信息写入数据库
+    if (!req.session.user) {
+        user.save((err,data) => {
+            if (err) {
+                res.send({'status': 1002, 'message': '注册失败！', 'data': err});
+            } else {
+                req.session.user = data
+                res.send({'status': 1000, 'message': '注册成功!'});
+            }
+        });
+    } else {
+        res.send({'status': 102, 'message': '已经注册过了！'});
+    }
+
 })
 //登录接口
 router.post('/api/user/login',(req,res) => {
