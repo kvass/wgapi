@@ -1,10 +1,12 @@
-const mongoose =require('mongoose')//加载模块
+const mongoose = require('./db');
 const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
-  'code': String,
-  'state': Boolean,
-  'name': String,
+  code: String,
+  state: Boolean,
+  name: String,
+  sid: String,
+  sort: Number,
   date: { type: Date, default: Date.now }
 })
 

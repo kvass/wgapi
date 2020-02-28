@@ -7,7 +7,7 @@
 var app = require('../app');
 var debug = require('debug')('wgx:server');
 var http = require('http');
-var io = require('../routes/socket');
+// var io = require('../routes/socket');
 
 
 /**
@@ -22,10 +22,19 @@ app.set('port', port);
  */
 
 var server = http.createServer(app);
-io.getSocketio(server)
+// io.getSocketio(server)
+
+/**
+ * Socket.io
+ */
+
+var io = app.io
+io.attach( server );
+
 /**
  * Listen on provided port, on all network interfaces.
  */
+
 
 server.listen(port);
 server.on('error', onError);

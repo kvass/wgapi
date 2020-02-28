@@ -11,7 +11,7 @@ io.getSocketio = function(server){ // http(s) server
     io.sockets.on('connection', (socket) => {
         console.log('socket连接成功');
         socket.on('login',function(data){ //接收连接中的login事件
-            // console.log(data);
+            console.log(data);
             // io.emit('TT','你发过来的数据是：'+ data)
             io.sockets.emit('TT', '你发过来的数据是：'+ data, socket.id);
         }),
@@ -21,7 +21,7 @@ io.getSocketio = function(server){ // http(s) server
                 if(ids.length < 1) {
                     members[mindex].id = socket.id
                     members[mindex].state = true
-                    // console.log(members[mindex].id)
+                    console.log(members[mindex].id)
                 }
             }
             io.sockets.emit('YesiamMSG', members);

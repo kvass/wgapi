@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
+const sio = require( "socket.io" );
 const bodyParser = require('body-parser');
 
 const session = require('express-session')
@@ -14,6 +15,13 @@ const usersRouter = require('./routes/users');
 const api = require('./routes/api');
 
 const app = express();
+// Socket.io
+const io = sio();
+app.io = io;
+const routes = require('./routes/index')(io);
+
+const sharedsession = require("express-socket.io-session");;
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -29,12 +37,6 @@ const allowCors = function(req, res, next) {
 };
 app.use(allowCors);//使用跨域中间件
 
-// app.use((req, res, next) => {
-//     res.set('Access-Control-Allow-Origin', 'http://localhost:8095');
-//     res.set('Access-Control-Allow-Credentials', 'true');
-//     next();
-// });
-
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -42,7 +44,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // session 中间件
-app.use(session({
+const sess = session({
     name: 'wagoz', // 设置 cookie 中保存 session id 的字段名称
     secret: 'wangongzai', // 通过设置 secret 来计算 hash 值并放在 cookie 中，使产生的 signedCookie 防篡改
     resave: true, // 强制更新 session
@@ -53,10 +55,13 @@ app.use(session({
     store: new MongoStore({// 将 session 存储到 mongodb
       url: 'mongodb://localhost:27017/shop'// mongodb 地址
     })
-}))
+})
+app.use(sess)
+io.use(sharedsession(sess));
 // flash 中间件，用来显示通知
 // app.use(flash())
 app.use(api);
+app.use(routes);
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);

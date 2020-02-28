@@ -76,7 +76,7 @@ router.post('/desk', (req, res) => {
     //     title: 'MongoDB 教程',
     //     member: ['mongodb', 'database', 'NoSQL'],
     // })
-    Desks.insertMany({OCards: req.body, title: '共花边缘精度呆在'},(err, result) => {
+    Desks.insertMany({OCards: req.body, title: '共花边缘精度呆在'}, (err, result) => {
         if (err) {
             res.send({'status': 1002, 'message': '添加失败', 'data': err});
         } else {
@@ -96,7 +96,7 @@ router.post('/desk', (req, res) => {
     //         console.log('删除成功---');
     //     }
     // })
-    console.log("可以了!");
+    console.log("可以调用 desks 集合了!");
 })
 
 //注册账号的接口
@@ -104,7 +104,7 @@ router.post('/desk', (req, res) => {
 router.get('/reg', checkNL, (req,res, next) => {
     //这里的req.body 其实使用了body-parser中间件 用来对前端发送来的数据进行解析
     //查询数据库中name= req.body.name 的数据
-    res.send('注册')
+    res.send('你看到的是注册页')
 })
 //  /api为代理的服务
 router.post('/reg', checkNL, (req,res) => {
@@ -113,24 +113,24 @@ router.post('/reg', checkNL, (req,res) => {
     // res.send(req.body)
 
     // 待写入数据库的用户信息
-    let user = new Users ({
-      name: req.body.name,
-      code: req.body.code,
-      state: req.body.state
-    })
-    // 用户信息写入数据库
-    if (!req.session.user) {
-        user.save((err,data) => {
-            if (err) {
-                res.send({'status': 1002, 'message': '注册失败！', 'data': err});
-            } else {
-                req.session.user = data
-                res.send({'status': 1000, 'message': '注册成功!'});
-            }
-        });
-    } else {
-        res.send({'status': 102, 'message': '已经注册过了！'});
-    }
+    // let user = new Users ({
+    //   name: req.body.name,
+    //   code: req.body.code,
+    //   state: req.body.state
+    // })
+    // // 用户信息写入数据库
+    // if (!req.session.user) {
+    //     user.save((err,data) => {
+    //         if (err) {
+    //             res.send({'status': 1002, 'message': '注册失败！', 'data': err});
+    //         } else {
+    //             req.session.user = data
+    //             res.send({'status': 1000, 'message': '注册成功!'});
+    //         }
+    //     });
+    // } else {
+    //     res.send({'status': 102, 'message': '已经注册过了！'});
+    // }
 
 })
 //登录接口
