@@ -2,7 +2,7 @@ const mongoose = require('./db');
 const Schema = mongoose.Schema;
 
 const panSchema = new Schema({
-     users: [{ type: Schema.Types.ObjectId, ref: 'Users' }],
+     users: [{ type: Schema.Types.ObjectId, ref: 'users' }],
     OCards: [{
           _id: String,
           des: String,

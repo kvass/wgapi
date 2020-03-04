@@ -3,9 +3,10 @@ const Schema = mongoose.Schema;
 
 const desksSchema = new Schema({
     title: String,
-    users: [{ type: Schema.Types.ObjectId, ref: 'Users' }],
+    users: [{ type: Schema.Types.ObjectId, ref: 'users' }],
     state: String,
-    pans: [{ type: Schema.Types.ObjectId, ref: 'Pans' }],
+    sort: String,
+    pans: [{ type: Schema.Types.ObjectId, ref: 'pans' }],
     date: {type: Date, default: Date.now}
 })
 
