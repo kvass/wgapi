@@ -31,7 +31,14 @@ module.exports = function(io) {
                 return value1 - value2;
             }
         }
-
+        socket.on('reload', (members) => {
+            if(soSession.user) {
+                let userCode = soSession.user.code
+                let userIndex = members.findIndex(item => {item.code == userCode})
+                members[userIndex] = soSession.user
+            }
+            io.emit('reloadMSG', members)
+        })
         socket.on('chooseRole', function(members, mindex, oindex){
             //获取角色激活数
             let userChNum = members.filter(item => item.state == true).length;
@@ -158,6 +165,7 @@ module.exports = function(io) {
                         } else if (i < 30 && i > 23) {
                             OCards[i].open = true;
                             OCards[i].own = 'WC';
+                            OCards[i].sort = i;
                         }  else {
                             clearInterval(FPJSQ);
                             FPJSQ = null;
@@ -170,14 +178,126 @@ module.exports = function(io) {
                 } //建盘callback end
             }) //pans.insertMany end
         }),//createPan end
-        socket.on('Diao', (cards, fn) => {
+        socket.on('Diao', (cards, code, panID) => {
             io.emit('DiaoMsg', cards);
-            console.log('出牌了')
-            fn('非常大条')
-        }),
-        socket.on('Diao2', (cards) => {
-            io.emit('DiaoMsg2', cards);
-            console.log('翻出牌了')
+            function DiaoC() {
+                //找出所有翻出来的牌 WC
+                let WCards = cards.filter(item => item.own == 'WC')
+                let NCard = cards.find(item => item.own == 'NC' + code)
+                let num = NCard.num
+                let DiaoNum
+                if (num < 10) {
+                    DiaoNum = 10 - num;
+                } else if (num == 20) {
+                    DiaoNum = 21;
+                } else if (num == 21) {
+                    DiaoNum = 20;
+                } else {
+                    DiaoNum = num;
+                }
+
+                //找出所有能‘对’的牌
+                if (WCards.length != 0) {
+                    let DiaoCards = WCards.filter(item => item.num == DiaoNum)
+                    //判断 有没有 ‘对’的牌
+                    if (DiaoCards.length == 0) {
+                        console.log('没有牌')
+                        WCards = WCards.sort(compare('sort'))
+                        NCard.sort = WCards[WCards.length -1].sort + 2
+                        NCard.own = 'WC'
+                    } else if (DiaoCards.length == 1) {
+                        console.log('只有一张牌')
+                        let MCnum = cards.filter(item => item.own == 'MC' + code).length
+                        let OCard = cards.find(item => item._id == DiaoCards[0]._id)
+                        OCard.own = 'MC' + code
+                        OCard.sort = MCnum + 2
+                        NCard.sort = MCnum + 1
+                        NCard.own = 'MC' + code
+                    } else if (DiaoCards.length > 1) {
+                        // 考虑 当它 为一对三的情况
+                        let MCnum = cards.filter(item => item.own == 'MC' + code).length
+                        if (DiaoNum >= 10 && DiaoCards.length == 3) {
+                            cards.find(item => item._id == DiaoCards[0]._id).own = 'MC' + code
+                            cards.find(item => item._id == DiaoCards[1]._id).own = 'MC' + code
+                            cards.find(item => item._id == DiaoCards[2]._id).own = 'MC' + code
+                            cards.find(item => item._id == DiaoCards[0]._id).sort = MCnum + 2
+                            cards.find(item => item._id == DiaoCards[1]._id).sort = MCnum + 3
+                            cards.find(item => item._id == DiaoCards[2]._id).sort = MCnum + 4
+                        } else {
+                            let DiaoAC = DiaoCards.find(item => item.des == 'A' || item.des == 'C')
+                            if(!DiaoAC) {
+                                DiaoAC = DiaoCards.find(item => item.des == 'B' || item.des == 'D')
+                            }
+                            let OCard = cards.find(item => item._id == DiaoAC._id)
+                            OCard.own = 'MC' + code
+                            OCard.sort = MCnum + 2
+                        }
+                        NCard.sort = MCnum + 1
+                        NCard.own = 'MC' + code
+                    }
+                } else {
+                    NCard.sort = 2
+                    NCard.own = 'WC'
+                }
+                io.emit('DiaoMsg', cards);
+
+                // 判断底牌是否为零，决定是否结束且显示结果
+                let DCards = cards.filter(item => item.own == 'DC')
+                if (DCards.length > 0) {
+                    console.log('破有牌:' + DCards.length);
+                } else {
+                    console.log('破无牌:' + DCards.length);
+
+                    let FC = cards.filter(item => item.own == 'MCF');
+                    let LC = cards.filter(item => item.own == 'MCL');
+                    let ZC = cards.filter(item => item.own == 'MCZ');
+                    // console.log(FC);
+                    FC = FC.filter(item => item.des == 'A' || item.des == 'C' || item.des == 'Z')
+                    LC = LC.filter(item => item.des == 'A' || item.des == 'C' || item.des == 'Z')
+                    ZC = ZC.filter(item => item.des == 'A' || item.des == 'C' || item.des == 'Z')
+                    console.log(FC);
+                    let Fscore = 0, Zscore = 0, Lscore = 0
+                    for (i=0; i<FC.length; i ++) {
+                        if(FC[i].num == 1 || FC[i].num == 5 || FC[i].num > 8 || FC[i].num == 21) {
+                            Fscore += 10
+                        } else if (FC[i].num < 10 && FC[i].num > 1) {
+                            Fscore += FC[i].num
+                        }
+                    }
+                    for (i=0; i<ZC.length; i ++) {
+                        if(ZC[i].num == 1 || ZC[i].num == 5 || ZC[i].num > 8 || ZC[i].num == 21) {
+                            Zscore += 10
+                        } else if (ZC[i].num < 10 && ZC[i].num > 1) {
+                            Zscore += ZC[i].num
+                        }
+                    }
+                    for (i=0; i<LC.length; i ++) {
+                        if(LC[i].num == 1 || LC[i].num == 5 || LC[i].num > 8 || LC[i].num == 21) {
+                            Lscore += 10
+                        } else if (LC[i].num < 10 && LC[i].num > 1) {
+                            Lscore += LC[i].num
+                        }
+                    }
+                    let score = {Z: Zscore - 70,F: Fscore - 70,L: Lscore - 70}
+                    Pans.updateOne({_id: panID}, {$set: {ZCards: cards, score: score}}, (err) => {
+                        if(!err) {
+                            console.log('一盘结束，更新成功');
+                        }
+                    })
+                    setTimeout(() => {io.emit('endMsg', score);}, 1000)
+                }
+            }
+            // DiaoChu()
+            setTimeout(DiaoC, 500)//setTimeout end
+            function DiaoF() {
+                let DCards = cards.filter(item => item.own == 'DC')
+                let lastDC = DCards[DCards.length - 1]
+                cards.find(item => item._id == lastDC._id).open = true
+                cards.find(item => item._id == lastDC._id).own = 'NC' + code
+                io.emit('DiaoMsg', cards);
+            }
+            setTimeout(DiaoF, 700)//setTimeout end
+            setTimeout(DiaoC, 1200)//setTimeout end
         })
     });
 
