@@ -7,6 +7,7 @@ const userSchema = new Schema({
   name: String,
   sid: String,
   sort: Number,
+  playing: Boolean,
   date: { type: Date, default: Date.now }
 })
 

@@ -11,4 +11,4 @@ const cardsSchema = new Schema({
     'name': String
 })
 
-module.exports = mongoose.model('goods',cardsSchema)
+module.exports = mongoose.model('qin',cardsSchema)

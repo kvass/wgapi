@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const Users = require('../models/user');
 const Desks = require('../models/desks');
 const Pans = require('../models/pan');
-const Goods = require('../models/goods');
+const Qins = require('../models/goods');
 
 module.exports = function(io) {
     const app = require('express');
@@ -55,8 +55,6 @@ module.exports = function(io) {
                 soSession.user = members[mindex]
                 // 把激活角色状态广播
                 io.emit('roleMSG', members)
-                // socket.emit('YesiamMSG2', soSession.user.sid)
-                // io.to(socket.id).emit('DCutMsg2', soSession.user.name + '在这里安心的测试下了')
 
                 //当所有角色都激活了，执行下面函数
                 if (userChNum == 3) {
@@ -72,23 +70,45 @@ module.exports = function(io) {
                                     console.log("保存 desk 失败" + err);
                                 } else {
                                     let panUsers = users.sort(compare('sort'))
+                                    //查有没有上一盘出牌状态
+                                    let ui = panUsers.findIndex(item => item.playing == true)
+                                    // if (ui < 0 || ui == 2) {
+                                    //     panUsers[0].playing = true
+                                    // } else {
+                                    //     panUsers[ui + 1].playing = true
+                                    // }
+                                    if (ui < 0) {
+                                        panUsers[0].playing = true
+                                    }
                                     io.emit('DStartMsg', false, result[0]._id, panUsers)
                                 }
                             })
                         }
                     }); //Users end
-                    Goods.find({}, function (err, doc) {
+                    Qins.find({}, function (err, doc) {
                         if (err) {
-                            socket.emit('createPanMsg', "破查出错信息：" + err);
+                            console.log("破查出错信息：" + err);
                         } else {
                             let OCards = shuffle(doc);
                             io.emit('sendCards', OCards)
                         } //if end
-                    })//goods.find end
+                    })//Qins.find end
                     //打乱原牌，生成乱牌传给 OCards,为创建 盘 做准备
                 }//当所有用户都激活了，执行下面函数 end
             }
         }),
+        socket.on('againPlay', () => {
+            console.log("破收到又来一次的请求");
+            Qins.find({}, function (err, doc) {
+                if (err) {
+                    console.log("破查出错信息：" + err);
+                } else {
+                    let OCards = shuffle(doc);
+                    io.emit('sendCards', OCards)
+                    io.emit('againPMsg', true)
+                } //if end
+            })//Qins.find end
+        }), //againPlay end
         // 创建 1\用户 2\桌
         socket.on('createDesk', (members) => {
             // 把 用户 存进库里
@@ -107,19 +127,19 @@ module.exports = function(io) {
                     })
                 }
             }); //Users end
-            Goods.find({}, function (err, doc) {
+            Qins.find({}, function (err, doc) {
                 if (err) {
                     socket.emit('createPanMsg', "破查出错信息：" + err);
                 } else {
                     let OCards = shuffle(doc);
                     io.emit('sendCards', OCards)
                 } //1 if end
-            })//goods.find end
+            })//Qins.find end
         }), //createDesk end
-        // 1\查询 GOODS 里的数据 2\放入 OCards 并创建 盘 3\把 盘 放入 桌
+        // 切牌 —— 1\查询 Qins 里的数据 2\放入 OCards 并创建 盘 3\把 盘 放入 桌
         socket.on('DCut', (DeskID, users, OCards) => {
             let usersID = (users).map(item => item._id)
-            Pans.insertMany({users: usersID, OCards: OCards}, async (err, result) => {
+            Pans.insertMany({users: usersID, OCards: OCards}, (err, result) => {
                 if (err) {
                     socket.emit('DCutMsg', "破建盘出错：" + err);
                 } else {
@@ -130,18 +150,9 @@ module.exports = function(io) {
                         if (err) {
                             socket.emit('DCutMsg', "破放入desk出错：" + err);
                         } else {
-                            io.emit('DCutMsg', panID, OCards, users, result._id)
+                            io.emit('DCutMsg', panID, OCards, users, DeskID)
                         } //3 if end
                     })//Desks.updateOne end
-                    // 发牌
-
-                    // Pans.findOne({_id: panID}, (err, doc) => {
-                    //     if (err) {
-                    //         console.log('查不到盘')
-                    //     } else {
-                    //         console.log(doc)
-                    //     } //1 if end
-                    // })
 
                     //发牌 start
                     let panUsers = users.sort(compare('sort'))
@@ -177,9 +188,9 @@ module.exports = function(io) {
                     }, 50)// 发牌 end
                 } //建盘callback end
             }) //pans.insertMany end
-        }),//createPan end
-        socket.on('Diao', (cards, code, panID) => {
-            io.emit('DiaoMsg', cards);
+        }),//切牌 end
+        socket.on('Diao', (cards, code, panID, users) => {
+            io.emit('DiaoMsg', cards, users);
             function DiaoC() {
                 //找出所有翻出来的牌 WC
                 let WCards = cards.filter(item => item.own == 'WC')
@@ -239,7 +250,7 @@ module.exports = function(io) {
                     NCard.sort = 2
                     NCard.own = 'WC'
                 }
-                io.emit('DiaoMsg', cards);
+                io.emit('DiaoMsg', cards, users);
 
                 // 判断底牌是否为零，决定是否结束且显示结果
                 let DCards = cards.filter(item => item.own == 'DC')
@@ -284,20 +295,27 @@ module.exports = function(io) {
                             console.log('一盘结束，更新成功');
                         }
                     })
-                    setTimeout(() => {io.emit('endMsg', score);}, 1000)
+                    setTimeout(() => {io.emit('endMsg', score);}, 500)
                 }
+            }// DiaoChu() end
+
+            // 轮到下一个
+            function next() {
+                users[1].playing = false
+                users[2].playing = true
+                io.emit('DiaoMsg', cards, users);
             }
-            // DiaoChu()
             setTimeout(DiaoC, 500)//setTimeout end
             function DiaoF() {
                 let DCards = cards.filter(item => item.own == 'DC')
                 let lastDC = DCards[DCards.length - 1]
                 cards.find(item => item._id == lastDC._id).open = true
                 cards.find(item => item._id == lastDC._id).own = 'NC' + code
-                io.emit('DiaoMsg', cards);
+                io.emit('DiaoMsg', cards, users);
             }
-            setTimeout(DiaoF, 700)//setTimeout end
-            setTimeout(DiaoC, 1200)//setTimeout end
+            setTimeout(DiaoF, 700)      //翻牌 end
+            setTimeout(DiaoC, 1200)     //翻出来的再对 end
+            setTimeout(next, 1200)      //改为下一个角色出牌 end
         })
     });
 
