@@ -1,14 +1,16 @@
 const express = require('express');
 const router = express.Router();//这里用到了express的路由级中间件
+const Qins = require('../models/goods');
 const Goods = require('../models/goods');
 const Desks = require('../models/desks');
 const Users = require('../models/user');
-const checkNL = require('../mw/check').checkNotLogin
 
 //路由获取
-router.get('/goods', function (req, res, next) {
-//查询mongoDB的goods数据
-    Goods.find({}, function (err, doc) {
+router.get('/qins', function (req, res, next) {
+    //查询mongoDB的goods数据
+        req.session.a = 'asdf'
+        console.log(req.session.a)
+    Qins.find({}, function (err, doc) {
         if (err) {
             res.json({
                 status: '1',
@@ -45,6 +47,10 @@ router.post('/desk/cut', function (req, res) {
     })
 });
 router.get('/desk', function (req, res, next) {
+    if(req.session.a) {
+        req.session.a = 'asdf'
+    }
+    console.log(req.session)
     Desks.find({}, function (err, doc) {
         if (err) {
         res.json({
@@ -56,7 +62,11 @@ router.get('/desk', function (req, res, next) {
         }
     })
 });
-router.post('/desk', (req, res) => {
+router.post('/desks', (req, res) => {
+    // if(req.session.a) {
+        req.session.a = 'asdf'
+    // }
+    console.log(req.session.a)
     // res.json(req.body);
     // Desks.insert({title: '共花边缘精度呆在'});
     // let desk = new Desks({
@@ -76,38 +86,26 @@ router.post('/desk', (req, res) => {
     //     title: 'MongoDB 教程',
     //     member: ['mongodb', 'database', 'NoSQL'],
     // })
-    Desks.insertMany({OCards: req.body, title: '共花边缘精度呆在'}, (err, result) => {
-        if (err) {
-            res.send({'status': 1002, 'message': '添加失败', 'data': err});
-        } else {
-            res.json(result);
-            // res.send({'status': 1000, 'message': '注册成功!', 'AA': result});
-        }
-    });
-    // Desks.update({}, {$set: {OCards: req.body, title: '第一桌'}}, (err) => {
-    //     if(!err){
-    //         console.log('删除成功---');
+    // Desks.insertMany({title: '共花边缘精度呆在'}, (err, result) => {
+    //     if (err) {
+    //         res.send({'status': 1002, 'message': '添加失败', 'data': err});
+    //     } else {
+    //         res.json(result);
+    //         // res.send({'status': 1000, 'message': '注册成功!', 'AA': result});
     //     }
     // });
-    // Desks.create({title:"故国不堪回首月明中", member: ['伊妹儿','东冬']})
-    // Desks.update(req.body);
-    // Desks.remove({title:'真的很有看头哟'},(err) => {
-    //     if(!err){
-    //         console.log('删除成功---');
-    //     }
-    // })
     console.log("可以调用 desks 集合了!");
 })
 
 //注册账号的接口
 //  /api为代理的服务
-router.get('/reg', checkNL, (req,res, next) => {
+router.get('/reg', (req,res, next) => {
     //这里的req.body 其实使用了body-parser中间件 用来对前端发送来的数据进行解析
     //查询数据库中name= req.body.name 的数据
     res.send('你看到的是注册页')
 })
 //  /api为代理的服务
-router.post('/reg', checkNL, (req,res) => {
+router.post('/reg', (req,res) => {
     //这里的req.body 其实使用了body-parser中间件 用来对前端发送来的数据进行解析
     //查询数据库中name= req.body.name 的数据
     // res.send(req.body)

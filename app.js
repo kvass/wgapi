@@ -20,16 +20,17 @@ const io = sio();
 app.io = io;
 const routes = require('./routes/index')(io);
 
-const sharedsession = require("express-socket.io-session");;
+const sharedsession = require("express-socket.io-session");
 
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
+
 // 自定义跨域中间件
 const allowCors = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:8095');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type');
     res.header('Access-Control-Allow-Credentials','true');
@@ -57,7 +58,7 @@ const sess = session({
     })
 })
 app.use(sess)
-io.use(sharedsession(sess));
+io.use(sharedsession(sess, {autoSave:true}));
 // flash 中间件，用来显示通知
 // app.use(flash())
 app.use(api);

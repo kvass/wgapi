@@ -5,13 +5,34 @@ const Desks = require('../models/desks');
 const Pans = require('../models/pan');
 const Qins = require('../models/goods');
 
+
 module.exports = function(io) {
     const app = require('express');
     const router = app.Router();
 
     io.on('connection', function(socket) {
-        console.log('socket 破成功')
-        let soSession = socket.handshake.session;
+        let session = socket.handshake.session;
+        // console.log('socket 破成功')
+
+        // // var cookief =socket.handshake.headers.cookie;
+
+        // // socket.handshake.session.socketID = socket.id + '破棋子'
+        // // socket.handshake.session.save()
+        // var cookies = socket.handshake.session
+        // console.log(socket.handshake.session);
+
+
+        // console.log(cookies);
+        // console.log(socket.id)
+        if (session.user) {
+            console.log('老人发')
+            console.log(session.user)
+        } else {
+            console.log('新进的')
+            // socket.handshake.session.user = '破天荒' + socket.id
+            // uu.push(socket.handshake.session.user)
+            // console.log(uu)
+        }
         //数组随机函数
         const shuffle = (arr) => {
             var i, j, temp;
@@ -53,6 +74,8 @@ module.exports = function(io) {
                     members[mindex].sid = socket.id
                 }
                 soSession.user = members[mindex]
+                // soSession.save()
+                // socket.handshake.session.save();
                 // 把激活角色状态广播
                 io.emit('roleMSG', members)
 
@@ -72,11 +95,6 @@ module.exports = function(io) {
                                     let panUsers = users.sort(compare('sort'))
                                     //查有没有上一盘出牌状态
                                     let ui = panUsers.findIndex(item => item.playing == true)
-                                    // if (ui < 0 || ui == 2) {
-                                    //     panUsers[0].playing = true
-                                    // } else {
-                                    //     panUsers[ui + 1].playing = true
-                                    // }
                                     if (ui < 0) {
                                         panUsers[0].playing = true
                                     }
@@ -98,7 +116,6 @@ module.exports = function(io) {
             }
         }),
         socket.on('againPlay', () => {
-            console.log("破收到又来一次的请求");
             Qins.find({}, function (err, doc) {
                 if (err) {
                     console.log("破查出错信息：" + err);
@@ -138,6 +155,8 @@ module.exports = function(io) {
         }), //createDesk end
         // 切牌 —— 1\查询 Qins 里的数据 2\放入 OCards 并创建 盘 3\把 盘 放入 桌
         socket.on('DCut', (DeskID, users, OCards) => {
+            // 存起来，方便查找下一家
+            users[1].playing = false
             let usersID = (users).map(item => item._id)
             Pans.insertMany({users: usersID, OCards: OCards}, (err, result) => {
                 if (err) {
@@ -180,10 +199,11 @@ module.exports = function(io) {
                         }  else {
                             clearInterval(FPJSQ);
                             FPJSQ = null;
+                            users[1].playing = true
                         }
-                        io.emit('dealCardMsg', OCards)
-                        if(soSession.user) {
-
+                        io.emit('dealCardMsg', OCards, users)
+                        if(!soSession.user) {
+                            soSession.user = users[1]
                         }
                     }, 50)// 发牌 end
                 } //建盘callback end
