@@ -1,38 +1,51 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const Roles = require('../models/role');
 const Users = require('../models/user');
-const Desks = require('../models/desks');
+const Desks = require('../models/desk');
 const Pans = require('../models/pan');
-const Qins = require('../models/goods');
-
+const Qins = require('../models/qin');
 
 module.exports = function(io) {
     const app = require('express');
     const router = app.Router();
+    let RAM = []
 
     io.on('connection', function(socket) {
-        let session = socket.handshake.session;
-        // console.log('socket 破成功')
-
-        // // var cookief =socket.handshake.headers.cookie;
-
-        // // socket.handshake.session.socketID = socket.id + '破棋子'
-        // // socket.handshake.session.save()
-        // var cookies = socket.handshake.session
-        // console.log(socket.handshake.session);
-
-
-        // console.log(cookies);
-        // console.log(socket.id)
-        if (session.user) {
-            console.log('老人发')
-            console.log(session.user)
+        socket.join('other', () => {
+            console.log(Object.keys(socket.rooms))
+        })
+        let iosession = socket.handshake.session;
+        // console.log(io.sockets.manager.rooms)
+        // socket.request.session
+        let RAMlength = RAM.filter(item => item.state == true).length;
+        if (RAMlength > 0) {
+            console.log('已经有人选过' + RAMlength)
+            if (iosession.user) {
+                console.log('老人发'+ socket.id)
+                // socket.emit('sendCode', iosession.user.code)
+            } else {
+                console.log('新进的')
+            }
+            io.to('other').emit('roleMSG', RAM)
         } else {
-            console.log('新进的')
-            // socket.handshake.session.user = '破天荒' + socket.id
-            // uu.push(socket.handshake.session.user)
-            // console.log(uu)
+            console.log('还没人选')
+            Roles.find({}, (err, doc) => {
+                if(!err) {
+                    io.to('other').emit('roleMSG', doc)
+                }
+            })
         }
+        // if (session.user) {
+        //     console.log('老人发')
+        //     console.log(session.user)
+        // } else {
+        //     console.log('新进的')
+        //     session.a = 'asdf'
+        // // socket.handshake.session.user = '破天荒' + socket.id
+        //     // uu.push(socket.handshake.session.user)
+        //     console.log(session.a)
+        // }
         //数组随机函数
         const shuffle = (arr) => {
             var i, j, temp;
@@ -52,66 +65,98 @@ module.exports = function(io) {
                 return value1 - value2;
             }
         }
-        socket.on('reload', (members) => {
-            if(soSession.user) {
-                let userCode = soSession.user.code
-                let userIndex = members.findIndex(item => {item.code == userCode})
-                members[userIndex] = soSession.user
+        socket.on('disconnect',function() {
+            if (RAM.length) {
+                let you = RAM.find(item => item.sid = socket.id)
+                console.log(you.name+'？？？离开了聊天室');
+                // delete iosession.user
             }
-            io.emit('reloadMSG', members)
+            //这里如何获得准确地用户名？目前只能知道某个用户断开了连接
+        })
+        socket.on('reload', (members) => {
+            if(iosession.user) {
+                let userCode = iosession.user.code
+                let userIndex = members.findIndex(item => {item.code == userCode})
+                members[userIndex] = iosession.user
+            }
+            // io.emit('reloadMSG', members)
         })
         socket.on('chooseRole', function(members, mindex, oindex){
-            //获取角色激活数
-            let userChNum = members.filter(item => item.state == true).length;
-            if (userChNum < 4) {
+            let membersLength = members.filter(item => item.state == true).length;
+            let roomIds = Object.keys(socket.rooms)[1]
+                //获取角色激活数
+            if (membersLength < 4) {
+                if(membersLength == 1 && roomIds == 'other') {
+                    roomId = mongoose.Types.ObjectId();
+                    socket.join(roomId, () => {
+                        console.log(Object.keys(socket.rooms))
+                    })
+                } else {
+                    socket.join(roomId, () => {
+                        console.log(Object.keys(socket.rooms))
+                    })
+                }
+                socket.leave('other')
+
                 if (oindex) {
                     members[oindex].sort = ''
                     members[oindex].sid = ''
-                    members[mindex].sort = userChNum
+                    members[mindex].sort = membersLength
                     members[mindex].sid = socket.id
                 } else {
-                    members[mindex].sort = userChNum
+                    members[mindex].sort = membersLength
                     members[mindex].sid = socket.id
                 }
-                soSession.user = members[mindex]
-                // soSession.save()
+                iosession.user = members[mindex]
+                // session.save()
                 // socket.handshake.session.save();
                 // 把激活角色状态广播
-                io.emit('roleMSG', members)
+                RAM = members
+                io.to('other').to(roomId).emit('roleMSG', members)
 
                 //当所有角色都激活了，执行下面函数
-                if (userChNum == 3) {
-                    // 把 角色（用户） 存进库里
-                    Users.insertMany(members, (err, result) => {
+                if (membersLength == 3) {
+                    RAM = []
+                    // console.log('3 个人了')
+                    // // 把 角色（用户） 存进库里
+                    // Users.insertMany(members, (err, result) => {
+                    //     if (err) {
+                    //         console.log("保存用户失败" + err);
+                    //     } else {
+                    //         let users = result
+                    //     }
+                    // }); //Users end
+
+                    let usersID = (members).map(item => item._id)
+                    Desks.insertMany({_id: roomId, users: usersID}, (err, result) => {
                         if (err) {
-                            console.log("保存用户失败" + err);
+                            console.log("保存 desk 失败" + err);
                         } else {
-                            let users = result
-                            let usersID = (users).map(item => item._id)
-                            Desks.insertMany({users: usersID}, (err, result) => {
-                                if (err) {
-                                    console.log("保存 desk 失败" + err);
-                                } else {
-                                    let panUsers = users.sort(compare('sort'))
-                                    //查有没有上一盘出牌状态
-                                    let ui = panUsers.findIndex(item => item.playing == true)
-                                    if (ui < 0) {
-                                        panUsers[0].playing = true
-                                    }
-                                    io.emit('DStartMsg', false, result[0]._id, panUsers)
-                                }
-                            })
+                            let panUsers = members.sort(compare('sort'))
+                            //查有没有上一盘出牌状态
+                            let ui = panUsers.findIndex(item => item.playing == true)
+                            if (ui < 0) {
+                                panUsers[0].playing = true
+                            }
+                            io.to(roomId).emit('DStartMsg', false, result[0]._id, panUsers)
                         }
-                    }); //Users end
+                    })
                     Qins.find({}, function (err, doc) {
                         if (err) {
                             console.log("破查出错信息：" + err);
                         } else {
                             let OCards = shuffle(doc);
-                            io.emit('sendCards', OCards)
+                            io.to(roomId).emit('sendCards', OCards)
                         } //if end
                     })//Qins.find end
                     //打乱原牌，生成乱牌传给 OCards,为创建 盘 做准备
+
+                    //把其他的链接全初始化
+                    Roles.find({}, (err, doc) => {
+                        if(!err) {
+                            io.to('other').emit('roleMSG', doc)
+                        }
+                    })
                 }//当所有用户都激活了，执行下面函数 end
             }
         }),
@@ -121,8 +166,8 @@ module.exports = function(io) {
                     console.log("破查出错信息：" + err);
                 } else {
                     let OCards = shuffle(doc);
-                    io.emit('sendCards', OCards)
-                    io.emit('againPMsg', true)
+                    io.to(roomId).emit('sendCards', OCards)
+                    io.to(roomId).emit('againPMsg', true)
                 } //if end
             })//Qins.find end
         }), //againPlay end
@@ -155,6 +200,7 @@ module.exports = function(io) {
         }), //createDesk end
         // 切牌 —— 1\查询 Qins 里的数据 2\放入 OCards 并创建 盘 3\把 盘 放入 桌
         socket.on('DCut', (DeskID, users, OCards) => {
+            let room = Object.keys(socket.rooms)[1]
             // 存起来，方便查找下一家
             users[1].playing = false
             let usersID = (users).map(item => item._id)
@@ -169,7 +215,7 @@ module.exports = function(io) {
                         if (err) {
                             socket.emit('DCutMsg', "破放入desk出错：" + err);
                         } else {
-                            io.emit('DCutMsg', panID, OCards, users, DeskID)
+                            io.to(room).emit('DCutMsg', panID, OCards, users, DeskID)
                         } //3 if end
                     })//Desks.updateOne end
 
@@ -201,16 +247,17 @@ module.exports = function(io) {
                             FPJSQ = null;
                             users[1].playing = true
                         }
-                        io.emit('dealCardMsg', OCards, users)
-                        if(!soSession.user) {
-                            soSession.user = users[1]
+                        io.to(room).emit('dealCardMsg', OCards, users)
+                        if(!iosession.user) {
+                            iosession.user = users[1]
                         }
                     }, 50)// 发牌 end
                 } //建盘callback end
             }) //pans.insertMany end
         }),//切牌 end
         socket.on('Diao', (cards, code, panID, users) => {
-            io.emit('DiaoMsg', cards, users);
+            let room = Object.keys(socket.rooms)[1]
+            io.to(room).emit('DiaoMsg', cards, users);
             function DiaoC() {
                 //找出所有翻出来的牌 WC
                 let WCards = cards.filter(item => item.own == 'WC')
@@ -270,7 +317,7 @@ module.exports = function(io) {
                     NCard.sort = 2
                     NCard.own = 'WC'
                 }
-                io.emit('DiaoMsg', cards, users);
+                io.to(room).emit('DiaoMsg', cards, users);
 
                 // 判断底牌是否为零，决定是否结束且显示结果
                 let DCards = cards.filter(item => item.own == 'DC')
@@ -315,7 +362,7 @@ module.exports = function(io) {
                             console.log('一盘结束，更新成功');
                         }
                     })
-                    setTimeout(() => {io.emit('endMsg', score);}, 500)
+                    setTimeout(() => {io.to(room).emit('endMsg', score);}, 500)
                 }
             }// DiaoChu() end
 
@@ -323,7 +370,7 @@ module.exports = function(io) {
             function next() {
                 users[1].playing = false
                 users[2].playing = true
-                io.emit('DiaoMsg', cards, users);
+                io.to(room).emit('DiaoMsg', cards, users);
             }
             setTimeout(DiaoC, 500)//setTimeout end
             function DiaoF() {
@@ -331,7 +378,7 @@ module.exports = function(io) {
                 let lastDC = DCards[DCards.length - 1]
                 cards.find(item => item._id == lastDC._id).open = true
                 cards.find(item => item._id == lastDC._id).own = 'NC' + code
-                io.emit('DiaoMsg', cards, users);
+                io.to(room).emit('DiaoMsg', cards, users);
             }
             setTimeout(DiaoF, 700)      //翻牌 end
             setTimeout(DiaoC, 1200)     //翻出来的再对 end

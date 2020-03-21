@@ -1,14 +1,21 @@
 const express = require('express');
 const router = express.Router();//这里用到了express的路由级中间件
-const Qins = require('../models/goods');
-const Goods = require('../models/goods');
-const Desks = require('../models/desks');
+const Qins = require('../models/qin');
+const Desks = require('../models/desk');
 const Users = require('../models/user');
 
 //路由获取
+router.get('/', function (req, res, next) {
+    req.session.uid = '秦路由session'
+        // req.session.a = '秦路由session'
+        // req.session.W = 'kv'
+        //     console.log(req.session.W)
+    res.render('index', { message: "Session created: "+req.session.uid});
+        // req.session
+});
 router.get('/qins', function (req, res, next) {
     //查询mongoDB的goods数据
-        req.session.a = 'asdf'
+        req.session.a = '秦路由session'
         console.log(req.session.a)
     Qins.find({}, function (err, doc) {
         if (err) {
