@@ -147,6 +147,7 @@ module.exports = function(io) {
                         } else {
                             let OCards = shuffle(doc);
                             io.to(roomId).emit('sendCards', OCards)
+                            console.log('OCards')
                         } //if end
                     })//Qins.find end
                     //打乱原牌，生成乱牌传给 OCards,为创建 盘 做准备
